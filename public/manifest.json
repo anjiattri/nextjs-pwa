@@ -1,0 +1,40 @@
+{
+    "theme_color": "#055CA8",
+    "background_color": "#055CA8",
+    "display": "standalone",
+    "start_url": "/",  
+    "scope": "/",
+    "name": "PWA",
+    "short_name": "User App",
+    "description": "Demo PWA App",
+    "id":"/",
+    "icons": [
+      {
+        "src": "icons/icon-152x152.png",
+        "sizes": "152x152",
+        "type": "image/png"
+      },
+      {
+        "src": "icons/icon-192x192.png",
+        "sizes": "192x192",
+        "type": "image/png"
+      },
+      {
+        "src": "icons/icon-384x384.png",
+        "sizes": "384x384",
+        "type": "image/png"
+      },
+      {
+        "src": "icons/icon-512x512.png",
+        "sizes": "512x512",
+        "type": "image/png"
+      },
+      {
+        "src": "icons/maskable.png",
+        "sizes": "192x192",
+        "type": "image/png",
+        "purpose": "maskable"
+      }
+    ]
+  }
+  
