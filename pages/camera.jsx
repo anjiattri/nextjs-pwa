@@ -266,7 +266,7 @@ const Camera = () => {
                 >
                   {file ? (
                     <img
-                      src={source ? source : `/images/${file}`}
+                      src={source ? source : `${file}`}
                       alt={"profile"}
                       className="max-w-full max-h-full"
                     />
