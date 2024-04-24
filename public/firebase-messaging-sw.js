@@ -63,6 +63,33 @@ firebase.initializeApp(firebaseConfig);
 //   dispatchEvent(newEvent);
 // });
 
+// const messaging = firebase.messaging();
+
+// messaging.onBackgroundMessage((payload) => {
+//   console.log(
+//     "[firebase-messaging-sw.js] Received background message ",
+//     payload
+//   );
+
+//   const { title, body, image, icon, ...restPayload } = payload.data;
+//   const notificationOptions = {
+//     body,
+//     icon: image || "/icons/badge.png", // path to your "fallback" firebase notification logo
+//     data: restPayload,
+//     badge: "/icons/badge.png",
+//     image: "/icons/badge.png",
+//   };
+//   return self.registration.showNotification(title, notificationOptions);
+// });
+
+// self.addEventListener("notificationclick", (event) => {
+//   if (event?.notification?.data && event?.notification?.data?.link) {
+//     self.clients.openWindow(event.notification.data.link);
+//   }
+
+//   // close notification after click
+//   event.notification.close();
+// });
 const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
@@ -70,6 +97,15 @@ messaging.onBackgroundMessage((payload) => {
     "[firebase-messaging-sw.js] Received background message ",
     payload
   );
+
+  // Check if the necessary data fields are present in the payload
+  if (!payload || !payload.data || !payload.data.title || !payload.data.body) {
+    console.error(
+      "[firebase-messaging-sw.js] Invalid payload format: ",
+      payload
+    );
+    return;
+  }
 
   const { title, body, image, icon, ...restPayload } = payload.data;
   const notificationOptions = {
@@ -79,9 +115,7 @@ messaging.onBackgroundMessage((payload) => {
     badge: "/icons/badge.png",
     image: "/icons/badge.png",
   };
-  return event.waitUntil(
-    self.registration.showNotification(title, notificationOptions)
-  );
+  return self.registration.showNotification(title, notificationOptions);
 });
 
 self.addEventListener("notificationclick", (event) => {

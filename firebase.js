@@ -1,13 +1,13 @@
 import { initializeApp } from "firebase/app";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBg2K8qqjLYGannfmcZrqbCD2Xw_XzJmDI",
-  authDomain: "notification-424e3.firebaseapp.com",
-  projectId: "notification-424e3",
-  storageBucket: "notification-424e3.appspot.com",
-  messagingSenderId: "251413067178",
-  appId: "1:251413067178:web:e897a48a982640d56d27d3",
-  measurementId: "G-11C91JHHTR",
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
 // Initialize Firebase

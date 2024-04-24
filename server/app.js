@@ -1,99 +1,18 @@
-// const express = require("express");
-// const app = express();
-// // const webpush = require("web-push");
-// const cors = require("cors");
-
-// const port = 4000;
-
-// // const apiKeys = {
-// //   publicKey:
-// //     "BL0X_YqyqiPje-SJkUh863LgBp30kE6hbEZcUVUI2OeuzqKwY3GhvrqAqFSccRUejcU_5y3JGuRNHmqg1cx2V-Y",
-// //   privateKey: "LimCR1Fx9K0NyLoA78PcvXsNBL6lW5gtT242pOd6OuQ",
-// // };
-
-// // webpush.setVapidDetails(
-// //   "mailto:attri2707@gmail.com",
-// //   apiKeys.publicKey,
-// //   apiKeys.privateKey
-// // );
-// // const corsOptions = {
-// //   origin: "http://localhost:3000",
-// // };
-
-// // app.use(cors(corsOptions));
-// app.use(cors());
-
-// app.use(express.json());
-
-// app.get("/", (req, res) => {
-//   res.send("Hello world");
-// });
-
-// // const subDatabse = [];
-
-// // app.post("/save-subscription", (req, res) => {
-// //   subDatabse.push(req.body);
-// //   res.json({ status: "Success", message: "Subscription saved!" });
-// // });
-
-// // app.get("/send-notification", (req, res) => {
-// //   console.log("hojojojo");
-// //   webpush.sendNotification(subDatabse[0], "hello world from backend");
-// //   res.json({
-// //     status: "Success",
-// //     message: "Message sent to push service",
-// //     data: subDatabse[0],
-// //   });
-// // });
-// const users = [
-//   {
-//     first_name: "John",
-//     last_name: "Doe",
-//     email: "johndoe@example.com",
-//   },
-//   {
-//     first_name: "Alice",
-//     last_name: "Smith",
-//     email: "alicesmith@example.com",
-//   },
-// ];
-// app.get("/users", (req, res) => {
-//   res.json({
-//     status: "Success",
-//     data: users,
-//     timestamp: Date.now(),
-//   });
-// });
-
-// app.post("/users", (req, res) => {
-//   const user = req.body;
-//   users.push(user);
-//   res.json({
-//     status: "Success",
-//     // data: users,
-//     // timestamp: Date.now(),
-//   });
-// });
-
-// app.listen(port, () => {
-//   console.log("Server running on port 4000!");
-// });
 const express = require("express");
 const mongoose = require("mongoose");
 const app = express();
 const cors = require("cors");
-
+const multer = require("multer");
+const path = require("path");
+require("dotenv").config();
 const port = 4000;
 
 // Connect to MongoDB
 mongoose
-  .connect(
-    "mongodb+srv://anjalisinghfrontenddev:gXx0Jle2ULlbweaX@cluster0.ohf4lb0.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0",
-    {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    }
-  )
+  .connect(process.env.MONGODB_URL, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  })
   .then(() => {
     console.log("Connected to MongoDB");
   })
@@ -112,7 +31,7 @@ const profileSchema = new mongoose.Schema({
   name: String,
   dob: String,
   phone: String,
-  profile_pic: String,
+  file: String,
 });
 
 const User = mongoose.model("User", userSchema);
@@ -120,11 +39,23 @@ const Profile = mongoose.model("Profile", profileSchema);
 
 app.use(cors());
 app.use(express.json());
-
+app.use(express.static("public"));
 app.get("/", (req, res) => {
   res.send("Hello world");
 });
 
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    return cb(null, "../public/images");
+  },
+  filename: function (req, file, cb) {
+    return cb(
+      null,
+      file.fieldname + "_" + Date.now() + path.extname(file.originalname)
+    );
+  },
+});
+const upload = multer({ storage });
 // Get all users
 app.get("/users", async (req, res) => {
   try {
@@ -168,11 +99,17 @@ app.get("/profile", async (req, res) => {
 });
 
 // Create profile details for a user
-app.post("/profile", async (req, res) => {
+app.post("/profile", upload.single("file"), async (req, res) => {
+  // console.log("file-->", req.body, req.file.filename); // Logging the file name
   try {
     await Profile.deleteMany();
 
-    const profile = new Profile(req.body);
+    const profile = new Profile({
+      name: req.body.name,
+      dob: req.body.dob,
+      phone: req.body.phone,
+      file: req?.file?.filename || req?.body?.file,
+    });
     await profile.save();
     res.json({
       status: "Success",

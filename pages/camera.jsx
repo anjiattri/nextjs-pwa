@@ -1,42 +1,28 @@
+import enableNotifications from "@/utils/hooks/useFCMToken";
 import React, { useEffect, useState } from "react";
 import { FiCamera, FiUpload } from "react-icons/fi";
-
 const Camera = () => {
+  const [data, setData] = useState([]);
   const [source, setSource] = useState("");
+  const [file, setFile] = useState("");
   const [uploadFromGallery, setUploadFromGallery] = useState(false);
   const [name, setName] = useState("");
   const [dob, setDOB] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [notificationPermission, setNotificationPermission] = useState();
-  useEffect(() => {
-    // Update notification permission state
-    if ("Notification" in window) {
-      setNotificationPermission(Notification.permission);
-    }
-  }, []);
+  const [mode, setMode] = useState("online");
 
   const handleEnableNotification = () => {
-    if ("Notification" in window) {
-      // Request permission for notifications
-      Notification.requestPermission().then((permission) => {
-        setNotificationPermission(permission);
-        if (permission === "granted") {
-          console.log("Notification permission granted.");
-        } else {
-          console.warn("Notification permission denied.");
-        }
-      });
-    }
+    enableNotifications();
   };
 
   const handleCapture = (target) => {
-    if (target.files) {
-      if (target.files.length !== 0) {
-        const file = target.files[0];
-        const newUrl = URL.createObjectURL(file);
-        setSource(newUrl);
-        setUploadFromGallery(false); // Reset to camera mode after uploading from gallery
-      }
+    if (target.files && target.files.length !== 0) {
+      const file = target.files[0];
+      const newUrl = URL.createObjectURL(file);
+      setSource(newUrl);
+      setFile(file);
+      setUploadFromGallery(false); // Reset to camera mode after uploading from gallery
     }
   };
 
@@ -45,7 +31,149 @@ const Camera = () => {
   };
   useEffect(() => {
     fetchProfileData();
+    checkNotificationPermission();
   }, []);
+
+  const checkNotificationPermission = () => {
+    if ("Notification" in window && Notification.permission === "granted") {
+      setNotificationPermission("granted");
+    }
+  };
+
+  const getAllData = () => {
+    const idb =
+      window.indexedDB ||
+      window.mozIndexedDB ||
+      window.webkitIndexedDB ||
+      window.msIndexedDB ||
+      window.shimIndexedDB;
+    const dbPromise = idb.open("profile-db", 1);
+    dbPromise.onsuccess = () => {
+      const db = dbPromise.result;
+      console.log("db", db);
+      try {
+        const transaction = db?.transaction("profileData", "readonly");
+        if (transaction) {
+          const profileData = transaction?.objectStore("profileData");
+          const users = profileData?.getAll();
+          users.onsuccess = (query) => {
+            const data = query.srcElement.result;
+            console.log("indexedDB Data-->", data, data[0].data);
+
+            setData(data[0].data[0]);
+            setName(data[0].data[0].name);
+            setDOB(data[0].data[0].dob);
+            setPhoneNumber(data[0].data[0].phone);
+            setFile(data[0].data[0].file);
+          };
+          users.onerror = (event) => {
+            console.log("error", event);
+          };
+          transaction.oncomplete = () => {
+            db.close();
+          };
+        }
+      } catch (err) {
+        console.log("err", err);
+      }
+    };
+  };
+
+  const setAllData = (data) => {
+    const idb =
+      window.indexedDB ||
+      window.mozIndexedDB ||
+      window.webkitIndexedDB ||
+      window.msIndexedDB ||
+      window.shimIndexedDB;
+    if (!idb) {
+      alert("This browser doesn't support IndexedDB");
+      return;
+    }
+
+    const request = idb.open("profile-db", 1);
+
+    request.onerror = (event) => {
+      console.error("Error occurred with IndexedDB:", event.target.error);
+    };
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains("profileData")) {
+        console.log("Creating object store...");
+        db.createObjectStore("profileData", {
+          keyPath: "timestamp",
+        });
+      }
+    };
+
+    request.onsuccess = () => {
+      const db = request?.result;
+
+      if (!db.objectStoreNames.contains("profileData")) {
+        console.error("Object store 'profileData' not found.");
+        return;
+      }
+
+      const transaction = db?.transaction(["profileData"], "readwrite");
+
+      transaction.onerror = (event) => {
+        console.error("Transaction error:", event.target.error);
+      };
+
+      const profileData = transaction?.objectStore("profileData");
+
+      const getDataRequest = profileData.getAll();
+
+      getDataRequest.onsuccess = (event) => {
+        const storedDataArray = event.target.result || [];
+
+        if (storedDataArray.length > 0) {
+          const latestStoredData = storedDataArray[storedDataArray.length - 1];
+          const storedTimestamp = latestStoredData.timestamp;
+          const currentTimestamp = data.timestamp;
+
+          if (currentTimestamp - storedTimestamp > 600000) {
+            const clearRequest = profileData.clear();
+            clearRequest.onsuccess = () => {
+              const putRequest = profileData.put(data);
+              putRequest.onerror = (event) => {
+                console.error(
+                  "Error putting data into IndexedDB:",
+                  event.target.error
+                );
+              };
+            };
+            clearRequest.onerror = (event) => {
+              console.error(
+                "Error clearing data from IndexedDB:",
+                event.target.error
+              );
+            };
+          }
+        } else {
+          // If no data is stored, simply add it
+          const addRequest = profileData.add(data);
+          addRequest.onerror = (event) => {
+            console.error(
+              "Error adding data into IndexedDB:",
+              event.target.error
+            );
+          };
+        }
+
+        transaction.oncomplete = () => {
+          db.close();
+        };
+      };
+
+      getDataRequest.onerror = (event) => {
+        console.error(
+          "Error retrieving stored data from IndexedDB:",
+          event.target.error
+        );
+      };
+    };
+  };
 
   const fetchProfileData = () => {
     fetch(process.env.NEXT_PUBLIC_BASE_URL + "profile", {
@@ -61,39 +189,48 @@ const Camera = () => {
         setName(profiledata.name);
         setDOB(profiledata.dob);
         setPhoneNumber(profiledata.phone);
-        setSource(profiledata.profile_pic);
+        setFile(profiledata.file);
+        if (
+          navigator.onLine
+          // && navigator?.connection?.effectiveType === "4g"
+        ) {
+          setData(data?.data);
+          setAllData(data);
+        } else {
+          setMode("offline");
+          getAllData();
+        }
       })
       .catch((err) => {
+        if (
+          !navigator.onLine
+          // || navigator?.connection?.effectiveType !== "4g"
+        ) {
+          setMode("offline");
+          getAllData();
+        }
         console.log("Err", err);
       });
   };
 
   const handleSubmit = () => {
-    const payload = {
-      name: name,
-      dob: dob,
-      phone: phoneNumber,
-      profile_pic: source,
-    };
+    const formData = new FormData();
+    formData.append("name", name);
+    formData.append("dob", dob);
+    formData.append("phone", phoneNumber);
+    formData.append("file", file);
+    console.log("formData", formData);
     fetch(process.env.NEXT_PUBLIC_BASE_URL + "profile", {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
         "ngrok-skip-browser-warning": "69420",
       },
-      // headers: new Headers({
-      //   "ngrok-skip-browser-warning": "69420",
-      // }),
-      body: JSON.stringify(payload),
+      body: formData,
     })
       .then((res) => res.json())
       .then((data) => {
-        console.log("data saved suceessfully!");
-        // setName("");
-        // setSource("");
-        // setDOB("");
-        // setPhoneNumber("");
         fetchProfileData();
+        alert("saved successfully!");
       })
       .catch((error) => {
         console.error("Error:", error);
@@ -102,6 +239,11 @@ const Camera = () => {
 
   return (
     <div className="bg-gray-100 min-h-screen">
+      {mode === "offline" && (
+        <div className="flex items-center justify-center border bg-red-500 text-white text-bold">
+          You are in offline mode, please check your internet!
+        </div>
+      )}
       <div className="flex justify-between px-4 pt-4">
         <h2>Profile</h2>
         <h2>Welcome Back</h2>
@@ -122,10 +264,10 @@ const Camera = () => {
                     marginBottom: "1rem", // Added margin bottom for spacing
                   }}
                 >
-                  {source ? (
+                  {file ? (
                     <img
-                      src={source}
-                      alt={"snap"}
+                      src={source ? source : `/images/${file}`}
+                      alt={"profile"}
                       className="max-w-full max-h-full"
                     />
                   ) : (
@@ -202,7 +344,7 @@ const Camera = () => {
               {/* Submit Button */}
               <div className="mt-4">
                 <button
-                  disabled={!name || !phoneNumber || !dob || !source}
+                  disabled={!name || !phoneNumber || !dob || !file}
                   onClick={handleSubmit}
                   className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
                 >
@@ -212,6 +354,7 @@ const Camera = () => {
               <div className="mt-4">
                 <button
                   onClick={handleEnableNotification}
+                  // onClick={askForPermissionToReceiveNotifications}
                   disabled={notificationPermission === "granted"}
                   className={`bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded ${
                     notificationPermission === "granted"

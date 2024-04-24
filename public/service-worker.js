@@ -248,8 +248,8 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("fetch", (event) => {
   const { request } = event;
-  console.log("navigator.onLine", navigator.onLine);
-  if (!navigator.onLine) {
+
+  if (!navigator.onLine || navigator.connection.effectiveType !== "4g") {
     event.respondWith(
       caches.match(request, { ignoreSearch: true }).then((cachedResponse) => {
         if (cachedResponse) {
@@ -281,6 +281,8 @@ self.addEventListener("fetch", (event) => {
           });
       })
     );
+  } else {
+    return caches.match("offline.html");
   }
 });
 
